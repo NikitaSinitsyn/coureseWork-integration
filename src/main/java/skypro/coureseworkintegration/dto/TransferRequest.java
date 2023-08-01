@@ -6,6 +6,10 @@ public class TransferRequest {
     private long toAccountId;
     private long amount;
 
+    public TransferRequest(Long sourceAccountId, Long destinationAccountId, long transferAmount) {
+
+    }
+
     public long getToUserId() {
         return toUserId;
     }

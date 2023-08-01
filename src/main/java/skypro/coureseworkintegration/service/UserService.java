@@ -62,4 +62,11 @@ public class UserService implements UserDetailsService {
     public List<ListUserDTO> listUsers() {
         return userRepository.findAll().stream().map(ListUserDTO::from).collect(Collectors.toList());
     }
+    @Transactional(readOnly = true)
+    public long getUserIdByUsername(String username) {
+        return userRepository
+                .findByUsername(username)
+                .map(User::getId)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+    }
 }

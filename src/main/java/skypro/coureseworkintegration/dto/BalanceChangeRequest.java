@@ -5,6 +5,10 @@ import org.hibernate.validator.constraints.Range;
 public class BalanceChangeRequest {
     private long amount;
 
+    public BalanceChangeRequest(long depositAmount) {
+
+    }
+
     public long getAmount() {
         return amount;
     }
