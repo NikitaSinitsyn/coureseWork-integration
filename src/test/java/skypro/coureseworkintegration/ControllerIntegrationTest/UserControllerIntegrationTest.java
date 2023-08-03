@@ -207,7 +207,7 @@ public class UserControllerIntegrationTest {
         return accountDTO.getId();
     }
 
-    @Bean
+
     public TestRestTemplate restTemplate() {
         return new TestRestTemplate();
     }
