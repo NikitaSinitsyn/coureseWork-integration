@@ -1,6 +1,7 @@
 package skypro.coureseworkintegration.ControllerIntegrationTest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,6 +71,11 @@ public class UserControllerIntegrationTest {
     public void setupTestUsers() {
         userService.createUser("adminUser", "adminPassword");
         userService.createUser("regularUser", "regularPassword");
+    }
+    @AfterEach
+    public void cleanup() {
+        // Удаление всех пользователей после каждого теста
+        userService.deleteAllUsers();
     }
 
     @Test

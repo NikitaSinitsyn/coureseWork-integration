@@ -69,4 +69,7 @@ public class UserService implements UserDetailsService {
                 .map(User::getId)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
+    public void deleteAllUsers() {
+        userRepository.deleteAll();
+    }
 }
