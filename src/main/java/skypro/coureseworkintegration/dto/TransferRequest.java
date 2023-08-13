@@ -7,7 +7,9 @@ public class TransferRequest {
     private long amount;
 
     public TransferRequest(Long sourceAccountId, Long destinationAccountId, long transferAmount) {
-
+        fromAccountId = sourceAccountId;
+        toAccountId = destinationAccountId;
+        amount = transferAmount;
     }
 
     public long getToUserId() {
@@ -40,5 +42,15 @@ public class TransferRequest {
 
     public void setToAccountId(long toAccountId) {
         this.toAccountId = toAccountId;
+    }
+
+    @Override
+    public String toString() {
+        return "TransferRequest{" +
+                "fromAccountId=" + fromAccountId +
+                ", toUserId=" + toUserId +
+                ", toAccountId=" + toAccountId +
+                ", amount=" + amount +
+                '}';
     }
 }

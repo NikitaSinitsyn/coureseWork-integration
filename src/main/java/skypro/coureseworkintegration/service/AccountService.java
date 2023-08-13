@@ -31,7 +31,7 @@ public class AccountService {
             account.setUser(user);
             account.setAccountCurrency(currency);
             account.setAmount(1L);
-            user.getAccounts().add(account);
+//            user.getAccounts().add(account);
             accountRepository.save(account);
         }
     }
@@ -106,8 +106,8 @@ public class AccountService {
         account.setUser(userRepository.findById(userId).orElseThrow(UserNotFoundException::new));
         account.setAmount(initialBalance);
         account.setAccountCurrency(AccountCurrency.USD); // Set the currency you want here
-        accountRepository.save(account);
-        return AccountDTO.from(account);
+        Account saved = accountRepository.save(account);
+        return AccountDTO.from(saved);
     }
 
     @Transactional
@@ -121,6 +121,16 @@ public class AccountService {
 
     private Account getAccountByAccountId(Long accountId) {
         return accountRepository.findById(accountId).orElseThrow(AccountNotFoundException::new);
+    }
+    @Transactional
+    public AccountDTO createTestAccount(Long userId, long initialBalance, Long accountId) {
+        Account account = new Account();
+        account.setId(accountId);
+        account.setUser(userRepository.findById(userId).orElseThrow(UserNotFoundException::new));
+        account.setAmount(initialBalance);
+        account.setAccountCurrency(AccountCurrency.USD); // Set the currency you want here
+        Account saved = accountRepository.save(account);
+        return AccountDTO.from(saved);
     }
 
 }

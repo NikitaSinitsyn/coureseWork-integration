@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import skypro.coureseworkintegration.dto.BankingUserDetails;
 import skypro.coureseworkintegration.dto.ListUserDTO;
 import skypro.coureseworkintegration.dto.UserDTO;
+import skypro.coureseworkintegration.entity.Role;
 import skypro.coureseworkintegration.entity.User;
 import skypro.coureseworkintegration.exception.UserAlreadyExistsException;
 import skypro.coureseworkintegration.repository.UserRepository;
@@ -42,7 +43,7 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional
-    public UserDTO createUser(String username, String password) {
+    public UserDTO createUser(String username, String password, String role) {
         Optional<User> existingUser = userRepository.findByUsername(username);
         if (existingUser.isPresent()) {
             throw new UserAlreadyExistsException();
@@ -50,9 +51,10 @@ public class UserService implements UserDetailsService {
         User user = new User();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
-        userRepository.save(user);
-        accountService.createDefaultAccounts(user);
-        return UserDTO.from(user);
+        user.setRole(Role.valueOf(role));
+        User saved = userRepository.save(user);
+        accountService.createDefaultAccounts(saved);
+        return UserDTO.from(saved);
     }
     @Transactional(readOnly = true)
     public UserDTO getUser(long id) {
@@ -71,5 +73,14 @@ public class UserService implements UserDetailsService {
     }
     public void deleteAllUsers() {
         userRepository.deleteAll();
+    }
+
+    public User createTestUser(String username, String password, Long id) {
+        User user = new User();
+        user.setId(id); // Установите переданный id
+        user.setUsername(username);
+        user.setPassword(passwordEncoder.encode(password));
+        userRepository.save(user);
+        return user;
     }
 }

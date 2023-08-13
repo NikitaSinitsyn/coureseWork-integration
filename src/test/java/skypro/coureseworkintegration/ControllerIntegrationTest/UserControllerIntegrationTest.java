@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -11,20 +12,22 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import skypro.coureseworkintegration.dto.AccountDTO;
-import skypro.coureseworkintegration.dto.BalanceChangeRequest;
-import skypro.coureseworkintegration.dto.CreateUserRequest;
-import skypro.coureseworkintegration.dto.TransferRequest;
+import skypro.coureseworkintegration.dto.*;
 import skypro.coureseworkintegration.entity.AccountCurrency;
+import skypro.coureseworkintegration.entity.User;
 import skypro.coureseworkintegration.service.AccountService;
 import skypro.coureseworkintegration.service.UserService;
 
@@ -36,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-@Testcontainers
+//@Testcontainers
 public class UserControllerIntegrationTest {
 
     @LocalServerPort
@@ -54,23 +57,25 @@ public class UserControllerIntegrationTest {
     @Autowired
     private AccountService accountService;
 
-    @Container
-    public static PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
-            .withDatabaseName("testdb")
-            .withUsername("testuser")
-            .withPassword("testpass");
-
-    @DynamicPropertySource
-    static void postgresProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgreSQLContainer::getJdbcUrl);
-        registry.add("spring.datasource.username", postgreSQLContainer::getUsername);
-        registry.add("spring.datasource.password", postgreSQLContainer::getPassword);
-    }
+//    @Container
+//    public static PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
+//            .withDatabaseName("testdb")
+//            .withUsername("testuser")
+//            .withPassword("testpass");
+//
+//    @DynamicPropertySource
+//    static void postgresProperties(DynamicPropertyRegistry registry) {
+//        registry.add("spring.datasource.url", postgreSQLContainer::getJdbcUrl);
+//        registry.add("spring.datasource.username", postgreSQLContainer::getUsername);
+//        registry.add("spring.datasource.password", postgreSQLContainer::getPassword);
+//    }
+    private UserDTO userAdmin;
+    private UserDTO userUser;
 
     @BeforeEach
     public void setupTestUsers() {
-        userService.createUser("adminUser", "adminPassword");
-        userService.createUser("regularUser", "regularPassword");
+        userAdmin = userService.createUser("adminUser", "adminPassword", "ROLE_ADMIN");
+        userUser = userService.createUser("regularUser", "regularPassword", "ROLE_USER");
     }
     @AfterEach
     public void cleanup() {
@@ -84,6 +89,7 @@ public class UserControllerIntegrationTest {
         CreateUserRequest userRequest = new CreateUserRequest();
         userRequest.setUsername("newUser");
         userRequest.setPassword("newPassword");
+        userRequest.setRole("ROLE_USER");
 
         mockMvc.perform(post("/user")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -98,6 +104,7 @@ public class UserControllerIntegrationTest {
         CreateUserRequest userRequest = new CreateUserRequest();
         userRequest.setUsername("newUser");
         userRequest.setPassword("newPassword");
+        userRequest.setRole("ROLE_USER");
 
         mockMvc.perform(post("/user")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -122,27 +129,44 @@ public class UserControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "regularUser", password = "regularPassword", roles = "USER")
     public void testDepositToOwnAccount_Success() throws Exception {
-        long userId = getCurrentUserId();
-        Long accountId = createAccountForUser(userId);
-        long depositAmount = 500L;
+        UserDetails userDetails = userService.loadUserByUsername(userUser.getUsername());
+        long userId = userService.getUserIdByUsername(userUser.getUsername());
 
-        mockMvc.perform(post("/account/deposit/{id}", accountId)
+        Long sourceAccountId = createAccountForUserWithCurrency(userId, AccountCurrency.USD);
+
+        BankingUserDetails bankingDetails = new BankingUserDetails(userUser.getId(), userUser.getUsername(), userDetails.getPassword(), false);
+
+        // Установите аутентификацию в контексте Spring Security
+        Authentication authentication = new UsernamePasswordAuthenticationToken(bankingDetails, null, bankingDetails.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        long depositAmount = 500L;
+        long finalDepositAmount = 1500L;
+
+        mockMvc.perform(post("/account/deposit/{id}", sourceAccountId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new BalanceChangeRequest(depositAmount))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.amount").value(depositAmount));
+                .andExpect(jsonPath("$.amount").value(finalDepositAmount));
     }
 
     @Test
-    @WithMockUser(username = "regularUser", password = "regularPassword", roles = "USER")
     public void testWithdrawFromOwnAccount_Success() throws Exception {
-        long userId = getCurrentUserId();
-        Long accountId = createAccountForUser(userId);
-        long withdrawAmount = 200L;
+        UserDetails userDetails = userService.loadUserByUsername(userUser.getUsername());
+        long userId = userService.getUserIdByUsername(userUser.getUsername());
 
-        mockMvc.perform(post("/account/withdraw/{id}", accountId)
+        Long sourceAccountId = createAccountForUserWithCurrency(userId, AccountCurrency.USD);
+        long withdrawAmount = 200L;
+        BankingUserDetails bankingDetails = new BankingUserDetails(userUser.getId(), userUser.getUsername(), userDetails.getPassword(), false);
+
+        // Установите аутентификацию в контексте Spring Security
+        Authentication authentication = new UsernamePasswordAuthenticationToken(bankingDetails, null, bankingDetails.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+
+
+        mockMvc.perform(post("/account/withdraw/{id}", sourceAccountId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new BalanceChangeRequest(withdrawAmount))))
                 .andExpect(status().isOk())
@@ -150,12 +174,20 @@ public class UserControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "regularUser", password = "regularPassword", roles = "USER")
     public void testTransferBetweenOwnAccounts_Success() throws Exception {
-        long userId = getCurrentUserId();
-        Long sourceAccountId = createAccountForUser(userId);
-        Long destinationAccountId = createAccountForUser(userId);
+
+        UserDetails userDetails = userService.loadUserByUsername(userUser.getUsername());
+        long userId = userService.getUserIdByUsername(userUser.getUsername());
+
+        Long sourceAccountId = createAccountForUserWithCurrency(userId, AccountCurrency.USD);
+        Long destinationAccountId = createAccountForUserWithCurrency(userId, AccountCurrency.USD);
         long transferAmount = 200L;
+
+        BankingUserDetails bankingDetails = new BankingUserDetails(userUser.getId(), userUser.getUsername(), userDetails.getPassword(), false);
+
+        // Установите аутентификацию в контексте Spring Security
+        Authentication authentication = new UsernamePasswordAuthenticationToken(bankingDetails, null, bankingDetails.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
 
         mockMvc.perform(post("/transfer")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -171,12 +203,19 @@ public class UserControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "regularUser", password = "regularPassword", roles = "USER")
     public void testTransferBetweenAccounts_WithDifferentCurrencies_Failure() throws Exception {
-        long userId = getCurrentUserId();
+        UserDetails userDetails = userService.loadUserByUsername(userUser.getUsername());
+        long userId = userService.getUserIdByUsername(userUser.getUsername());
+
         Long sourceAccountId = createAccountForUserWithCurrency(userId, AccountCurrency.USD);
         Long destinationAccountId = createAccountForUserWithCurrency(userId, AccountCurrency.EUR);
         long transferAmount = 200L;
+
+        BankingUserDetails bankingDetails = new BankingUserDetails(userUser.getId(), userUser.getUsername(), userDetails.getPassword(), false);
+
+        // Установите аутентификацию в контексте Spring Security
+        Authentication authentication = new UsernamePasswordAuthenticationToken(bankingDetails, null, bankingDetails.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
 
         mockMvc.perform(post("/transfer")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -185,13 +224,19 @@ public class UserControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "regularUser", password = "regularPassword", roles = "USER")
     public void testWithdrawFromOwnAccount_InsufficientFunds_Failure() throws Exception {
-        long userId = getCurrentUserId();
-        Long accountId = createAccountForUser(userId);
-        long withdrawAmount = 1200L;
+        UserDetails userDetails = userService.loadUserByUsername(userUser.getUsername());
+        long userId = userService.getUserIdByUsername(userUser.getUsername());
 
-        mockMvc.perform(post("/account/withdraw/{id}", accountId)
+        Long sourceAccountId = createAccountForUserWithCurrency(userId, AccountCurrency.USD);
+        long withdrawAmount = 1200L;
+        BankingUserDetails bankingDetails = new BankingUserDetails(userUser.getId(), userUser.getUsername(), userDetails.getPassword(), false);
+
+        // Установите аутентификацию в контексте Spring Security
+        Authentication authentication = new UsernamePasswordAuthenticationToken(bankingDetails, null, bankingDetails.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        mockMvc.perform(post("/account/withdraw/{id}", sourceAccountId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new BalanceChangeRequest(withdrawAmount))))
                 .andExpect(status().isBadRequest());
@@ -199,11 +244,11 @@ public class UserControllerIntegrationTest {
 
     private long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return userService.getUserIdByUsername(authentication.getName());
+        return userService.getUserIdByUsername(((UserDetails) authentication.getPrincipal()).getUsername());
     }
 
     private Long createAccountForUser(long userId) {
-        AccountDTO accountDTO = accountService.createAccount(userId, 1000L);
+        AccountDTO accountDTO = accountService.createTestAccount(userId, 1000L, 1L);
         return accountDTO.getId();
     }
 

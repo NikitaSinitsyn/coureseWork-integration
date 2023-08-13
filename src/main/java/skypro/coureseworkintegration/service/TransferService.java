@@ -15,7 +15,7 @@ public class TransferService {
     }
 
     @Transactional
-    public void transfer(long id, @RequestBody TransferRequest transferRequest) {
+    public void transfer(Long id, TransferRequest transferRequest) {
         accountService.validateCurrency(
                 transferRequest.getFromAccountId(), transferRequest.getToAccountId());
         accountService.withdrawFromAccount(
