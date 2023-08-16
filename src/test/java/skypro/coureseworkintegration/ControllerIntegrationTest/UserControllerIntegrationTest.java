@@ -1,6 +1,7 @@
 package skypro.coureseworkintegration.ControllerIntegrationTest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import net.minidev.json.JSONObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -185,13 +186,17 @@ public class UserControllerIntegrationTest {
 
         BankingUserDetails bankingDetails = new BankingUserDetails(userUser.getId(), userUser.getUsername(), userDetails.getPassword(), false);
 
-        // Установите аутентификацию в контексте Spring Security
         Authentication authentication = new UsernamePasswordAuthenticationToken(bankingDetails, null, bankingDetails.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
+        JSONObject requestBody = new JSONObject();
+        requestBody.put("sourceAccountId", sourceAccountId);
+        requestBody.put("destinationAccountId", destinationAccountId); 
+        requestBody.put("transferAmount", transferAmount);
+
         mockMvc.perform(post("/transfer")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new TransferRequest(sourceAccountId, destinationAccountId, transferAmount))))
+                        .content(requestBody.toString()))
                 .andExpect(status().isOk());
 
         // Check account balances after transfer
