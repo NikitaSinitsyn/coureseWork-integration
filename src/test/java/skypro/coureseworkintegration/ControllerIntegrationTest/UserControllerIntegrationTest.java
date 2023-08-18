@@ -180,9 +180,9 @@ public class UserControllerIntegrationTest {
         UserDetails userDetails = userService.loadUserByUsername(userUser.getUsername());
         long userId = userService.getUserIdByUsername(userUser.getUsername());
 
-        Long sourceAccountId = createAccountForUserWithCurrency(userId, AccountCurrency.USD);
-        Long destinationAccountId = createAccountForUserWithCurrency(userId, AccountCurrency.USD);
-        long transferAmount = 200L;
+        Long fromAccountID = createAccountForUserWithCurrency(userId, AccountCurrency.USD);
+        Long toAccountID = createAccountForUserWithCurrency(userId, AccountCurrency.USD);
+        long amount = 200L;
 
         BankingUserDetails bankingDetails = new BankingUserDetails(userUser.getId(), userUser.getUsername(), userDetails.getPassword(), false);
 
@@ -190,9 +190,9 @@ public class UserControllerIntegrationTest {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         JSONObject requestBody = new JSONObject();
-        requestBody.put("sourceAccountId", sourceAccountId);
-        requestBody.put("destinationAccountId", destinationAccountId); 
-        requestBody.put("transferAmount", transferAmount);
+        requestBody.put("fromAccountId", fromAccountID);
+        requestBody.put("toAccountId", toAccountID);
+        requestBody.put("amount", amount);
 
         mockMvc.perform(post("/transfer")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -200,8 +200,8 @@ public class UserControllerIntegrationTest {
                 .andExpect(status().isOk());
 
         // Check account balances after transfer
-        AccountDTO sourceAccount = accountService.getAccount(userId, sourceAccountId);
-        AccountDTO destinationAccount = accountService.getAccount(userId, destinationAccountId);
+        AccountDTO sourceAccount = accountService.getAccount(userId, fromAccountID);
+        AccountDTO destinationAccount = accountService.getAccount(userId, toAccountID);
 
         assertThat(sourceAccount.getAmount()).isEqualByComparingTo(800L);
         assertThat(destinationAccount.getAmount()).isEqualByComparingTo(1200L);

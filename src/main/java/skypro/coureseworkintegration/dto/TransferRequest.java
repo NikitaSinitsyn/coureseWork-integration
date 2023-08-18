@@ -6,10 +6,10 @@ public class TransferRequest {
     private long toAccountId;
     private long amount;
 
-    public TransferRequest(Long sourceAccountId, Long destinationAccountId, long transferAmount) {
-        fromAccountId = sourceAccountId;
-        toAccountId = destinationAccountId;
-        amount = transferAmount;
+    public TransferRequest(long fromAccountId, long toAccountId, long amount) {
+        this.fromAccountId = fromAccountId;
+        this.toAccountId = toAccountId;
+        this.amount = amount;
     }
 
     public long getToUserId() {
