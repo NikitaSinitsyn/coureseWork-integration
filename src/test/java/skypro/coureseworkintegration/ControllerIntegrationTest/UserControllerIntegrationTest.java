@@ -192,6 +192,7 @@ public class UserControllerIntegrationTest {
         JSONObject requestBody = new JSONObject();
         requestBody.put("fromAccountId", fromAccountID);
         requestBody.put("toAccountId", toAccountID);
+        requestBody.put("toUserId", userId);
         requestBody.put("amount", amount);
 
         mockMvc.perform(post("/transfer")
