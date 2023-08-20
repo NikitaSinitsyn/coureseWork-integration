@@ -2,6 +2,7 @@ package skypro.coureseworkintegration.controller;
 
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,7 +23,7 @@ public class TransferController {
     @PostMapping
     public void transfer(
             Authentication authentication, @RequestBody TransferRequest transferRequest) {
-        BankingUserDetails bankingUserDetails = (BankingUserDetails) authentication.getPrincipal();
-        transferService.transfer(bankingUserDetails.getId(), transferRequest);
+        BankingUserDetails userDetails = (BankingUserDetails) authentication.getPrincipal();
+        transferService.transfer(userDetails.getId(), transferRequest);
     }
 }

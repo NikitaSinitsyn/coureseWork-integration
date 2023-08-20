@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:latest
+    container_name: banking_postgres
+    ports:
+      - "6543:5432"
+    environment:
+      POSTGRES_PASSWORD: super-safe-pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: banking_app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/banking
+      SPRING_DATASOURCE_USERNAME: banking
+      SPRING_DATASOURCE_PASSWORD: super-safe-pass
+      APP_SECURITY_ADMIN_TOKEN: SUPER_SECRET_KEY_FROM_ADMIN
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
